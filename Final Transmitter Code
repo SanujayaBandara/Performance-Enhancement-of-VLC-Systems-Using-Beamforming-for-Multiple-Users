@@ -1,0 +1,72 @@
+from machine import Pin
+import time
+
+# Define transmission pin (D2 -> GPIO 4)
+tx_pin = Pin(2, Pin.OUT)
+
+# VLC Parameters
+BIT_TIME = 0.1  # 100ms per bit
+PILOT_BITS = "10101101"  # Pilot bits for synchronization
+SYNC_BIT = "1"  # Clock pulse to synchronize receiver
+PREAMBLE = "1010"  # 4-bit preamble
+PREAMBLE_PAUSE = 0.5 # 2-second pause after preamble
+
+# Ensure the message is exactly 128 bits
+MESSAGE_BITS = "10101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010"
+
+def send_bit(bit):
+    """Transmit a single bit."""
+    tx_pin.value(1 if bit == '1' else 0)  # Turn LED ON for '1', OFF for '0'
+    time.sleep(BIT_TIME)  # Maintain bit duration
+
+def reset_clock():
+    """Reset the internal clock timing for synchronization."""
+    global start_time
+    start_time = time.ticks_ms()  # Reset the timing reference
+    print("Clock reset! Now transmitting message bits...")
+
+def transmit():
+    """Send preamble, pause, then pilot bits, sync bit, and message."""
+    
+    print(f"Message length: {len(MESSAGE_BITS)} bits")  # Debugging print
+
+    if len(MESSAGE_BITS) != 128:
+        print("Error: Message must be exactly 128 bits!")
+        return
+
+    # 🔹 Send 4-bit preamble
+    print("Transmitting 4-bit preamble: 1010")
+    for bit in PREAMBLE:
+        print(f"Preamble Bit: {bit}")
+        send_bit(bit)
+
+    # 🔹 Wait 2 seconds
+    tx_pin.value(0)
+    print("⏸️  Pause for 2 seconds after preamble...")
+    time.sleep(PREAMBLE_PAUSE)
+
+    # 🔹 Transmitting pilot bits
+    print("Transmitting pilot bits...")
+    for bit in PILOT_BITS:
+        print(f"Sending Pilot Bit: {bit}")
+        send_bit(bit)
+
+    # 🔹 Send Sync Bit (1 for BIT_TIME)
+    print("Sending Sync Bit (1) to reset clocks...")
+    send_bit(SYNC_BIT)
+
+    # 🔹 TX resets its own clock after sync bit
+    reset_clock()
+
+    # 🔹 Transmitting the 128-bit message
+    print("Transmitting 128-bit message...")
+    for bit in MESSAGE_BITS:
+        print(f"Sending Bit: {bit}")
+        send_bit(bit)
+
+    # 🔹 Turn off LED after transmission
+    tx_pin.value(0)
+    print("Transmission complete.")
+
+# Start transmission
+transmit()
